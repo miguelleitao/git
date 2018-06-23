@@ -756,7 +756,7 @@ struct moved_entry {
  */
 struct ws_delta {
 	char *string;
-	int current_longer : 1;
+	unsigned int current_longer : 1;
 };
 #define WS_DELTA_INIT { NULL, 0 }
 
