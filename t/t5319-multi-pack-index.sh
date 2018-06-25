@@ -6,8 +6,8 @@ test_description='multi-pack-indexes'
 midx_read_expect() {
 	NUM_PACKS=$1
 	cat >expect <<- EOF
-	header: 4d494458 1 1 $NUM_PACKS
-	chunks: pack_names
+	header: 4d494458 1 2 $NUM_PACKS
+	chunks: pack_names oid_lookup
 	packs:
 	EOF
 	if [ $NUM_PACKS -ge 1 ]
