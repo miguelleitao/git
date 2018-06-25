@@ -93,7 +93,8 @@ compare_results_with_midx() {
 	MSG=$1
 	test_expect_success "check normal git operations: $MSG" '
 		midx_git_two_modes "rev-list --objects --all" &&
-		midx_git_two_modes "log --raw"
+		midx_git_two_modes "log --raw" &&
+		midx_git_two_modes "log --oneline"
 	'
 }
 
