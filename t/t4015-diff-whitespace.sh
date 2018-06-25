@@ -1913,8 +1913,7 @@ test_expect_success 'compare whitespace delta incompatible with other space opti
 	test_must_fail git diff \
 		--color-moved-ws=allow-indentation-change,ignore-all-space \
 		2>err &&
-	grep allow-indentation-change err
+	test_i18ngrep allow-indentation-change err
 '
-
 
 test_done
