@@ -5,9 +5,11 @@ test_description='multi-pack-indexes'
 
 midx_read_expect() {
 	NUM_PACKS=$1
+	NUM_OBJECTS=$2
 	cat >expect <<- EOF
-	header: 4d494458 1 2 $NUM_PACKS
-	chunks: pack_names oid_lookup
+	header: 4d494458 1 3 $NUM_PACKS
+	chunks: pack_names oid_fanout oid_lookup
+	num_objects: $NUM_OBJECTS
 	packs:
 	EOF
 	if [ $NUM_PACKS -ge 1 ]
@@ -22,7 +24,7 @@ midx_read_expect() {
 test_expect_success 'write midx with no packs' '
 	test_when_finished rm pack/multi-pack-index &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 0
+	midx_read_expect 0 0
 '
 
 test_expect_success 'create objects' '
@@ -53,17 +55,17 @@ test_expect_success 'write midx with one v1 pack' '
 	pack=$(git pack-objects --index-version=1 pack/test <obj-list) &&
 	test_when_finished rm pack/test-$pack.pack pack/test-$pack.idx pack/multi-pack-index &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 1
+	midx_read_expect 1 17
 '
 
 test_expect_success 'write midx with one v2 pack' '
 	git pack-objects --index-version=2,0x40 pack/test <obj-list &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 1
+	midx_read_expect 1 17
 '
 
 test_expect_success 'Add more objects' '
-	for i in `test_seq 6 5`
+	for i in `test_seq 6 10`
 	do
 		iii=$(printf '%03i' $i)
 		test-tool genrandom "bar" 200 > wide_delta_$iii &&
@@ -89,7 +91,7 @@ test_expect_success 'Add more objects' '
 test_expect_success 'write midx with two packs' '
 	git pack-objects --index-version=1 pack/test-2 <obj-list2 &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 2
+	midx_read_expect 2 33
 '
 
 test_expect_success 'Add more packs' '
@@ -120,7 +122,7 @@ test_expect_success 'Add more packs' '
 
 test_expect_success 'write midx with twelve packs' '
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 12
+	midx_read_expect 12 73
 '
 
 test_done
