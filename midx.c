@@ -890,3 +890,11 @@ cleanup:
 	FREE_AND_NULL(pack_perm);
 	return 0;
 }
+
+void clear_midx_file(const char *object_dir)
+{
+	char *midx = get_midx_filename(object_dir);
+
+	if (remove_path(midx))
+		die(_("failed to clear multi-pack-index at %s"), midx);
+}
