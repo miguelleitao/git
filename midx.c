@@ -176,6 +176,28 @@ cleanup_fail:
 	return NULL;
 }
 
+int prepare_multi_pack_index_one(struct repository *r, const char *object_dir)
+{
+	struct multi_pack_index *m = r->objects->multi_pack_index;
+	struct multi_pack_index *m_search;
+
+	if (!core_multi_pack_index)
+		return 0;
+
+	for (m_search = m; m_search; m_search = m_search->next)
+		if (!strcmp(object_dir, m_search->object_dir))
+			return 1;
+
+	r->objects->multi_pack_index = load_multi_pack_index(object_dir);
+
+	if (r->objects->multi_pack_index) {
+		r->objects->multi_pack_index->next = m;
+		return 1;
+	}
+
+	return 0;
+}
+
 static size_t write_midx_header(struct hashfile *f,
 				unsigned char num_chunks,
 				uint32_t num_packs)
