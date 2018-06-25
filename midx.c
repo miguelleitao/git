@@ -33,6 +33,7 @@ struct multi_pack_index *load_multi_pack_index(const char *object_dir)
 	uint32_t hash_version;
 	char *midx_name = get_midx_filename(object_dir);
 	uint32_t i;
+	const char *cur_pack_name;
 
 	fd = git_open(midx_name);
 
@@ -115,6 +116,22 @@ struct multi_pack_index *load_multi_pack_index(const char *object_dir)
 
 	if (!m->chunk_pack_names)
 		die(_("multi-pack-index missing required pack-name chunk"));
+
+	m->pack_names = xcalloc(m->num_packs, sizeof(const char *));
+
+	cur_pack_name = (const char *)m->chunk_pack_names;
+	for (i = 0; i < m->num_packs; i++) {
+		m->pack_names[i] = cur_pack_name;
+
+		cur_pack_name += strlen(cur_pack_name) + 1;
+
+		if (i && strcmp(m->pack_names[i], m->pack_names[i - 1]) <= 0) {
+			error("MIDX pack names out of order: '%s' before '%s'",
+			      m->pack_names[i - 1],
+			      m->pack_names[i]);
+			goto cleanup_fail;
+		}
+	}
 
 	return m;
 
@@ -208,6 +225,20 @@ static void sort_packs_by_name(char **pack_names, uint32_t nr_packs, uint32_t *p
 	}
 
 	FREE_AND_NULL(pairs);
+}
+
+static size_t write_midx_pack_lookup(struct hashfile *f,
+				     char **pack_names,
+				     uint32_t nr_packs)
+{
+	uint32_t i, cur_len = 0;
+
+	for (i = 0; i < nr_packs; i++) {
+		hashwrite_be32(f, cur_len);
+		cur_len += strlen(pack_names[i]) + 1;
+	}
+
+	return sizeof(uint32_t) * (size_t)nr_packs;
 }
 
 static size_t write_midx_pack_names(struct hashfile *f,

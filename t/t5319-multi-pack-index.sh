@@ -8,8 +8,13 @@ midx_read_expect() {
 	cat >expect <<- EOF
 	header: 4d494458 1 1 $NUM_PACKS
 	chunks: pack_names
-	object_dir: .
+	packs:
 	EOF
+	if [ $NUM_PACKS -ge 1 ]
+	then
+		ls pack/ | grep idx | sort >> expect
+	fi
+	printf "object_dir: .\n" >>expect &&
 	test-tool read-midx . >actual &&
 	test_cmp expect actual
 }
