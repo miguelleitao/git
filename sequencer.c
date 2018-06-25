@@ -177,7 +177,7 @@ static int git_sequencer_config(const char *k, const char *v, void *cb)
 			warning(_("invalid commit message cleanup mode '%s'"),
 				  s);
 
-		free((char *)s);
+		free(s);
 		return status;
 	}
 
