@@ -20,6 +20,13 @@ static int read_midx_file(const char *object_dir)
 	       m->num_chunks,
 	       m->num_packs);
 
+	printf("chunks:");
+
+	if (m->chunk_pack_names)
+		printf(" pack_names");
+
+	printf("\n");
+
 	printf("object_dir: %s\n", m->object_dir);
 
 	return 0;
