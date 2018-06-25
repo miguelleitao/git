@@ -6,25 +6,28 @@ test_description='multi-pack-indexes'
 midx_read_expect() {
 	NUM_PACKS=$1
 	NUM_OBJECTS=$2
+	NUM_CHUNKS=$3
+	OBJECT_DIR=$4
+	EXTRA_CHUNKS="$5"
 	cat >expect <<- EOF
-	header: 4d494458 1 3 $NUM_PACKS
-	chunks: pack_names oid_fanout oid_lookup
+	header: 4d494458 1 $NUM_CHUNKS $NUM_PACKS
+	chunks: pack_names oid_fanout oid_lookup object_offsets$EXTRA_CHUNKS
 	num_objects: $NUM_OBJECTS
 	packs:
 	EOF
 	if [ $NUM_PACKS -ge 1 ]
 	then
-		ls pack/ | grep idx | sort >> expect
+		ls $OBJECT_DIR/pack/ | grep idx | sort >> expect
 	fi
-	printf "object_dir: .\n" >>expect &&
-	test-tool read-midx . >actual &&
+	printf "object_dir: $OBJECT_DIR\n" >>expect &&
+	test-tool read-midx $OBJECT_DIR >actual &&
 	test_cmp expect actual
 }
 
 test_expect_success 'write midx with no packs' '
 	test_when_finished rm pack/multi-pack-index &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 0 0
+	midx_read_expect 0 0 4 .
 '
 
 test_expect_success 'create objects' '
@@ -55,13 +58,13 @@ test_expect_success 'write midx with one v1 pack' '
 	pack=$(git pack-objects --index-version=1 pack/test <obj-list) &&
 	test_when_finished rm pack/test-$pack.pack pack/test-$pack.idx pack/multi-pack-index &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 1 17
+	midx_read_expect 1 17 4 .
 '
 
 test_expect_success 'write midx with one v2 pack' '
 	git pack-objects --index-version=2,0x40 pack/test <obj-list &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 1 17
+	midx_read_expect 1 17 4 .
 '
 
 test_expect_success 'Add more objects' '
@@ -91,7 +94,7 @@ test_expect_success 'Add more objects' '
 test_expect_success 'write midx with two packs' '
 	git pack-objects --index-version=1 pack/test-2 <obj-list2 &&
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 2 33
+	midx_read_expect 2 33 4 .
 '
 
 test_expect_success 'Add more packs' '
@@ -122,7 +125,29 @@ test_expect_success 'Add more packs' '
 
 test_expect_success 'write midx with twelve packs' '
 	git multi-pack-index --object-dir=. write &&
-	midx_read_expect 12 73
+	midx_read_expect 12 73 4 .
+'
+
+
+# usage: corrupt_data <file> <pos> [<data>]
+corrupt_data() {
+	file=$1
+	pos=$2
+	data="${3:-\0}"
+	printf "$data" | dd of="$file" bs=1 seek="$pos" conv=notrunc
+}
+
+# Force 64-bit offsets by manipulating the idx file.
+# This makes the IDX file _incorrect_ so be careful to clean up after!
+test_expect_success 'force some 64-bit offsets with pack-objects' '
+	mkdir objects64 &&
+	mkdir objects64/pack &&
+	pack64=$(git pack-objects --index-version=2,0x40 objects64/pack/test-64 <obj-list) &&
+	idx64=objects64/pack/test-64-$pack64.idx &&
+	chmod u+w $idx64 &&
+	corrupt_data $idx64 2899 "\02" &&
+	midx64=$(git multi-pack-index write --object-dir=objects64) &&
+	midx_read_expect 1 62 5 objects64 " large_offsets"
 '
 
 test_done

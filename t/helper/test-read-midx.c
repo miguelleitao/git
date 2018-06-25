@@ -29,6 +29,10 @@ static int read_midx_file(const char *object_dir)
 		printf(" oid_fanout");
 	if (m->chunk_oid_lookup)
 		printf(" oid_lookup");
+	if (m->chunk_object_offsets)
+		printf(" object_offsets");
+	if (m->chunk_large_offsets)
+		printf(" large_offsets");
 
 	printf("\nnum_objects: %d\n", m->num_objects);
 
