@@ -438,7 +438,7 @@ static struct tree *empty_tree(void)
 
 static int error_dirty_index(struct replay_opts *opts)
 {
-	if (read_cache_unmerged())
+	if (read_index_unmerged(&the_index))
 		return error_resolve_conflict(_(action_name(opts)));
 
 	error(_("your local changes would be overwritten by %s."),
@@ -470,7 +470,7 @@ static int fast_forward_to(const struct object_id *to, const struct object_id *f
 	struct strbuf sb = STRBUF_INIT;
 	struct strbuf err = STRBUF_INIT;
 
-	read_cache();
+	read_index(&the_index);
 	if (checkout_fast_forward(from, to, 1))
 		return -1; /* the callee should have complained already */
 
@@ -503,12 +503,12 @@ void append_conflicts_hint(struct strbuf *msgbuf)
 
 	strbuf_addch(msgbuf, '\n');
 	strbuf_commented_addf(msgbuf, "Conflicts:\n");
-	for (i = 0; i < active_nr;) {
-		const struct cache_entry *ce = active_cache[i++];
+	for (i = 0; i < the_index.cache_nr;) {
+		const struct cache_entry *ce = the_index.cache[i++];
 		if (ce_stage(ce)) {
 			strbuf_commented_addf(msgbuf, "\t%s\n", ce->name);
-			while (i < active_nr && !strcmp(ce->name,
-							active_cache[i]->name))
+			while (i < the_index.cache_nr && !strcmp(ce->name,
+								 the_index.cache[i]->name))
 				i++;
 		}
 	}
@@ -528,7 +528,7 @@ static int do_recursive_merge(struct commit *base, struct commit *next,
 	if (hold_locked_index(&index_lock, LOCK_REPORT_ON_ERROR) < 0)
 		return -1;
 
-	read_cache();
+	read_index(&the_index);
 
 	init_merge_options(&o);
 	o.ancestor = base ? base_label : "(empty tree)";
@@ -574,16 +574,16 @@ static int do_recursive_merge(struct commit *base, struct commit *next,
 
 static struct object_id *get_cache_tree_oid(void)
 {
-	if (!active_cache_tree)
-		active_cache_tree = cache_tree();
+	if (!the_index.cache_tree)
+		the_index.cache_tree = cache_tree();
 
-	if (!cache_tree_fully_valid(active_cache_tree))
+	if (!cache_tree_fully_valid(the_index.cache_tree))
 		if (cache_tree_update(&the_index, 0)) {
 			error(_("unable to update cache tree"));
 			return NULL;
 		}
 
-	return &active_cache_tree->oid;
+	return &the_index.cache_tree->oid;
 }
 
 static int is_index_unchanged(void)
@@ -1647,7 +1647,7 @@ static int do_pick_commit(enum todo_command command, struct commit *commit,
 				       NULL, 0))
 			return error_dirty_index(opts);
 	}
-	discard_cache();
+	discard_index(&the_index);
 
 	if (!commit->parents)
 		parent = NULL;
@@ -2642,7 +2642,7 @@ static int do_exec(const char *command_line)
 					  child_env.argv);
 
 	/* force re-reading of the cache */
-	if (discard_cache() < 0 || read_cache() < 0)
+	if (discard_index(&the_index) < 0 || read_index(&the_index) < 0)
 		return error(_("could not read index"));
 
 	dirty = require_clean_work_tree("rebase", NULL, 1, 1);
@@ -2806,7 +2806,7 @@ static int do_reset(const char *name, int len, struct replay_opts *opts)
 	unpack_tree_opts.merge = 1;
 	unpack_tree_opts.update = 1;
 
-	if (read_cache_unmerged()) {
+	if (read_index_unmerged(&the_index)) {
 		rollback_lock_file(&lock);
 		strbuf_release(&ref_name);
 		return error_resolve_conflict(_(action_name(opts)));
@@ -2996,7 +2996,7 @@ static int do_merge(struct commit *commit, const char *arg, int arg_len,
 		commit_list_insert(j->item, &reversed);
 	free_commit_list(bases);
 
-	read_cache();
+	read_index(&the_index);
 	init_merge_options(&o);
 	o.branch1 = "HEAD";
 	o.branch2 = ref_name.buf;
@@ -3021,7 +3021,7 @@ static int do_merge(struct commit *commit, const char *arg, int arg_len,
 	 */
 	ret = !ret;
 
-	if (active_cache_changed &&
+	if (the_index.cache_changed &&
 	    write_locked_index(&the_index, &lock, COMMIT_LOCK)) {
 		ret = error(_("merge: Unable to write new index file"));
 		goto leave_merge;

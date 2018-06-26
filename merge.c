@@ -36,12 +36,12 @@ int index_has_changes(struct strbuf *sb)
 		diff_flush(&opt);
 		return opt.flags.has_changes != 0;
 	} else {
-		for (i = 0; sb && i < active_nr; i++) {
+		for (i = 0; sb && i < the_index.cache_nr; i++) {
 			if (i)
 				strbuf_addch(sb, ' ');
-			strbuf_addstr(sb, active_cache[i]->name);
+			strbuf_addstr(sb, the_index.cache[i]->name);
 		}
-		return !!active_nr;
+		return !!the_index.cache_nr;
 	}
 }
 
@@ -66,10 +66,10 @@ int try_merge_command(const char *strategy, size_t xopts_nr,
 	ret = run_command_v_opt(args.argv, RUN_GIT_CMD);
 	argv_array_clear(&args);
 
-	discard_cache();
-	if (read_cache() < 0)
+	discard_index(&the_index);
+	if (read_index(&the_index) < 0)
 		die(_("failed to read the cache"));
-	resolve_undo_clear();
+	resolve_undo_clear_index(&the_index);
 
 	return ret;
 }
@@ -85,7 +85,7 @@ int checkout_fast_forward(const struct object_id *head,
 	struct dir_struct dir;
 	struct lock_file lock_file = LOCK_INIT;
 
-	refresh_cache(REFRESH_QUIET);
+	refresh_index(&the_index, REFRESH_QUIET, NULL, NULL, NULL);
 
 	if (hold_locked_index(&lock_file, LOCK_REPORT_ON_ERROR) < 0)
 		return -1;

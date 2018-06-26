@@ -6,9 +6,9 @@ int main(int ac, char **av)
 	int dirty, clean, racy;
 
 	dirty = clean = racy = 0;
-	read_cache();
-	for (i = 0; i < active_nr; i++) {
-		struct cache_entry *ce = active_cache[i];
+	read_index(&the_index);
+	for (i = 0; i < the_index.cache_nr; i++) {
+		struct cache_entry *ce = the_index.cache[i];
 		struct stat st;
 
 		if (lstat(ce->name, &st)) {
@@ -16,9 +16,9 @@ int main(int ac, char **av)
 			continue;
 		}
 
-		if (ce_match_stat(ce, &st, 0))
+		if (ie_match_stat(&the_index, ce, &st, 0))
 			dirty++;
-		else if (ce_match_stat(ce, &st, CE_MATCH_RACY_IS_DIRTY))
+		else if (ie_match_stat(&the_index, ce, &st, CE_MATCH_RACY_IS_DIRTY))
 			racy++;
 		else
 			clean++;
