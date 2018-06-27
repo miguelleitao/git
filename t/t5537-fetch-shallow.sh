@@ -186,4 +186,27 @@ EOF
 	test_cmp expect actual
 '
 
+test_expect_success 'shallow fetches check connectivity without stopping at existing refs' '
+	cp -R .git server.git &&
+
+	# Normally, the connectivity check stops at ancestors of existing refs.
+	git init client &&
+	GIT_TRACE="$(pwd)/trace" git -C client fetch "$(pwd)/server.git" &&
+	grep "run_command: git rev-list" trace >rev-list-command &&
+	grep -e "--not --all" rev-list-command &&
+
+	# But it does not for a shallow fetch...
+	rm -rf client trace &&
+	git init client &&
+	GIT_TRACE="$(pwd)/trace" git -C client fetch --depth=1 "$(pwd)/server.git" &&
+	grep "run_command: git rev-list" trace >rev-list-command &&
+	! grep -e "--not --all" rev-list-command &&
+
+	# ...and when deepening.
+	rm trace &&
+	GIT_TRACE="$(pwd)/trace" git -C client fetch --unshallow "$(pwd)/server.git" &&
+	grep "run_command: git rev-list" trace >rev-list-command &&
+	! grep -e "--not --all" rev-list-command
+'
+
 test_done
