@@ -1448,7 +1448,7 @@ static void show_line(struct grep_opt *opt, char *bol, char *eol,
 		      const char *name, unsigned lno, ssize_t cno, char sign)
 {
 	int rest = eol - bol;
-	const char *match_color, *line_color = NULL;
+	const char *match_color = NULL, *line_color = NULL;
 
 	if (opt->file_break && opt->last_shown == 0) {
 		if (opt->show_hunk_mark)
