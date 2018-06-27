@@ -865,4 +865,59 @@ test_expect_success C_LOCALE_OUTPUT 'fetch compact output' '
 	test_cmp expect actual
 '
 
+negotiator_tip () {
+	SERVER="$1"
+	URL="$2"
+	USE_PROTOCOL_V2="$3"
+
+	rm -rf "$SERVER" client &&
+	git init "$SERVER" &&
+	test_commit -C "$SERVER" alpha_1 &&
+	test_commit -C "$SERVER" alpha_2 &&
+	git -C "$SERVER" checkout --orphan beta &&
+	test_commit -C "$SERVER" beta_1 &&
+	test_commit -C "$SERVER" beta_2 &&
+
+	git clone "$URL" client &&
+
+	if [ "$USE_PROTOCOL_V2" -eq 1 ]
+	then
+		git -C "$SERVER" config protocol.version 2
+		git -C client config protocol.version 2
+	fi &&
+
+	test_commit -C "$SERVER" beta_s &&
+	git -C "$SERVER" checkout master &&
+	test_commit -C "$SERVER" alpha_s &&
+	git -C "$SERVER" tag -d alpha_1 alpha_2 beta_1 beta_2 &&
+
+	GIT_TRACE_PACKET="$(pwd)/trace" git -C client fetch \
+		--negotiation-tip=alpha_1 --negotiation-tip=beta_1 \
+		origin alpha_s beta_s &&
+
+	# Ensure that {alpha,beta}_1 are sent as "have", but not {alpha_beta}_2
+	ALPHA_1=$(git -C client rev-parse alpha_1) &&
+	grep "fetch> have $ALPHA_1" trace &&
+	BETA_1=$(git -C client rev-parse beta_1) &&
+	grep "fetch> have $BETA_1" trace &&
+	ALPHA_2=$(git -C client rev-parse alpha_2) &&
+	! grep "fetch> have $ALPHA_2" trace &&
+	BETA_2=$(git -C client rev-parse beta_2) &&
+	! grep "fetch> have $BETA_2" trace
+}
+
+test_expect_success '--negotiator-tip limits "have" lines sent' '
+	negotiator_tip server server 0
+'
+
+. "$TEST_DIRECTORY"/lib-httpd.sh
+start_httpd
+
+test_expect_success 'fetch with --filter=blob:limit=0 and HTTP' '
+	negotiator_tip "$HTTPD_DOCUMENT_ROOT_PATH/server" \
+		"$HTTPD_URL/smart/server" 1
+'
+
+stop_httpd
+
 test_done
