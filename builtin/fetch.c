@@ -64,6 +64,7 @@ static int shown_url = 0;
 static struct refspec refmap = REFSPEC_INIT_FETCH;
 static struct list_objects_filter_options filter_options;
 static struct string_list server_options = STRING_LIST_INIT_DUP;
+static struct string_list negotiation_tip = STRING_LIST_INIT_NODUP;
 
 static int git_fetch_config(const char *k, const char *v, void *cb)
 {
@@ -162,6 +163,8 @@ static struct option builtin_fetch_options[] = {
 			TRANSPORT_FAMILY_IPV4),
 	OPT_SET_INT('6', "ipv6", &family, N_("use IPv6 addresses only"),
 			TRANSPORT_FAMILY_IPV6),
+	OPT_STRING_LIST(0, "negotiation-tip", &negotiation_tip, N_("revision"),
+			N_("report that we have only objects reachable from this object")),
 	OPT_PARSE_LIST_OBJECTS_FILTER(&filter_options),
 	OPT_END()
 };
@@ -1086,6 +1089,24 @@ static struct transport *prepare_transport(struct remote *remote, int deepen)
 		set_option(transport, TRANS_OPT_LIST_OBJECTS_FILTER,
 			   filter_options.filter_spec);
 		set_option(transport, TRANS_OPT_FROM_PROMISOR, "1");
+	}
+	if (negotiation_tip.nr) {
+		struct oid_array *oids;
+		if (transport->smart_options) {
+			int i;
+			oids = xcalloc(1, sizeof(*oids));
+			for (i = 0; i < negotiation_tip.nr; i++) {
+				struct object_id oid;
+				if (get_oid(negotiation_tip.items[i].string,
+					    &oid))
+					die("%s is not a valid object",
+					    negotiation_tip.items[i].string);
+				oid_array_append(oids, &oid);
+			}
+			transport->smart_options->negotiation_tips = oids;
+		} else {
+			warning("Ignoring --negotiation-tip because the protocol does not support it.");
+		}
 	}
 	return transport;
 }
